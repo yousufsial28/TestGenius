@@ -39,7 +39,15 @@ import {
 const formSchema = z.object({
   testTitle: z.string().min(1, "Test title is required"),
   instructions: z.string().min(1, "Instructions are required"),
-  mcqs: z.array(z.object({ value: z.string().min(1, "MCQ cannot be empty") })),
+  mcqs: z.array(
+    z.object({
+      question: z.string().min(1, "Question cannot be empty"),
+      optionA: z.string().min(1, "Option A is required"),
+      optionB: z.string().min(1, "Option B is required"),
+      optionC: z.string().min(1, "Option C is required"),
+      optionD: z.string().min(1, "Option D is required"),
+    })
+  ),
   shortQuestions: z.array(z.object({ value: z.string().min(1, "Question cannot be empty") })),
   longQuestions: z.array(z.object({ value: z.string().min(1, "Question cannot be empty") })),
   fontSize: z.number().min(1).max(72),
@@ -61,7 +69,7 @@ export default function CreateTestPage() {
     defaultValues: {
       testTitle: "",
       instructions: "",
-      mcqs: [{ value: "" }],
+      mcqs: [{ question: "", optionA: "", optionB: "", optionC: "", optionD: "" }],
       shortQuestions: [{ value: "" }],
       longQuestions: [{ value: "" }],
       fontSize: 12,
@@ -176,7 +184,7 @@ export default function CreateTestPage() {
         testTitle: data.testTitle,
         instructions: data.instructions,
         sections: [
-          { title: "MCQs", questions: data.mcqs.map(q => q.value) },
+          { title: "MCQs", questions: data.mcqs.map(q => `${q.question} <br> A) ${q.optionA} <br> B) ${q.optionB} <br> C) ${q.optionC} <br> D) ${q.optionD}`) },
           { title: "Short Questions", questions: data.shortQuestions.map(q => q.value) },
           { title: "Long Questions", questions: data.longQuestions.map(q => q.value) },
         ],
@@ -212,12 +220,96 @@ export default function CreateTestPage() {
       setIsLoading(false);
     }
   }
+  
+  const renderMcqFieldArray = () => (
+    <div>
+      {mcqFields.map((field, index) => (
+        <Card key={field.id} className="mb-4 p-4 space-y-3">
+            <div className="flex justify-between items-center">
+                <FormLabel className="font-semibold">Question #{index + 1}</FormLabel>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeMcq(index)}
+                  disabled={mcqFields.length <= 1}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+            <FormField
+              control={form.control}
+              name={`mcqs.${index}.question`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl><Input {...field} placeholder="Enter the question" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <FormField
+                  control={form.control}
+                  name={`mcqs.${index}.optionA`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl><Input {...field} placeholder="Option A" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name={`mcqs.${index}.optionB`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl><Input {...field} placeholder="Option B" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name={`mcqs.${index}.optionC`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl><Input {...field} placeholder="Option C" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name={`mcqs.${index}.optionD`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl><Input {...field} placeholder="Option D" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            </div>
+        </Card>
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-2"
+        onClick={() => appendMcq({ question: "", optionA: "", optionB: "", optionC: "", optionD: "" })}
+      >
+        <PlusCircle className="mr-2 h-4 w-4" />
+        Add MCQ
+      </Button>
+    </div>
+  );
+
 
   const renderFieldArray = (
     fields: Record<"id", string>[],
     append: (obj: { value: string }) => void,
     remove: (index: number) => void,
-    name: "mcqs" | "shortQuestions" | "longQuestions"
+    name: "shortQuestions" | "longQuestions"
   ) => (
     <div>
       {fields.map((field, index) => (
@@ -301,7 +393,7 @@ export default function CreateTestPage() {
                 <CardDescription>Add your MCQs here.</CardDescription>
             </CardHeader>
             <CardContent>
-                {renderFieldArray(mcqFields, appendMcq, removeMcq, "mcqs")}
+                {renderMcqFieldArray()}
             </CardContent>
           </Card>
 
