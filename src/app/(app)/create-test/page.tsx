@@ -5,6 +5,9 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { PlusCircle, Trash2, Loader2, Sparkles } from "lucide-react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
 
 import { Button } from "@/components/ui/button";
 import {
@@ -81,6 +84,54 @@ export default function CreateTestPage() {
     control: form.control,
     name: "longQuestions",
   });
+  
+  const handlePdfGeneration = async (content: string, title: string) => {
+    const tempElement = document.createElement('div');
+    tempElement.style.position = 'absolute';
+    tempElement.style.left = '-9999px';
+    tempElement.style.width = '210mm'; // A4 width
+    tempElement.style.padding = '20px';
+    tempElement.style.fontFamily = 'Inter, sans-serif';
+    tempElement.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit; font-size: 12px;">${content}</pre>`;
+    document.body.appendChild(tempElement);
+    
+    try {
+      const canvas = await html2canvas(tempElement, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = imgWidth / imgHeight;
+      const width = pdfWidth;
+      const height = width / ratio;
+
+      let position = 0;
+      let heightLeft = height;
+
+      pdf.addImage(imgData, 'PNG', 0, position, width, height);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - height;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, width, height);
+        heightLeft -= pdfHeight;
+      }
+      
+      pdf.save(`${title.replace(/\s+/g, '_')}.pdf`);
+    } catch (error) {
+       console.error("Error generating PDF:", error);
+       toast({
+        variant: "destructive",
+        title: "PDF Generation Failed",
+        description: "Could not generate the PDF file. Please try again.",
+      });
+    } finally {
+        document.body.removeChild(tempElement);
+    }
+  }
 
   async function onSubmit(data: FormValues) {
     setIsLoading(true);
@@ -103,6 +154,8 @@ export default function CreateTestPage() {
       const result = await optimizeTestLayout(input);
       setOptimizedResult(result.optimizedLayout);
       
+      await handlePdfGeneration(result.optimizedLayout, data.testTitle);
+
       // Save to local storage
       const savedTests = JSON.parse(localStorage.getItem("savedTests") || "[]");
       savedTests.push({ id: new Date().toISOString(), title: data.testTitle, date: new Date().toLocaleDateString() });
@@ -110,7 +163,7 @@ export default function CreateTestPage() {
 
       toast({
         title: "Test Generated & Saved!",
-        description: "Your test has been successfully optimized and saved to your local storage.",
+        description: "Your test has been successfully optimized, saved, and downloaded.",
       });
     } catch (error) {
       console.error("Error optimizing layout:", error);
