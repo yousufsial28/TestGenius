@@ -25,7 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { optimizeTestLayout } from "@/ai/flows/optimize-test-layout";
-import type { OptimizeTestLayoutInput } from "@/ai/flows/optimize-test-layout";
+import type { OptimizeTestLayoutOutput, OptimizeTestLayoutInput } from "@/ai/flows/optimize-test-layout";
 
 import {
   Dialog,
@@ -53,7 +53,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function CreateTestPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [optimizedResult, setOptimizedResult] = useState<string | null>(null);
+  const [optimizedResult, setOptimizedResult] = useState<OptimizeTestLayoutOutput | null>(null);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -85,38 +85,71 @@ export default function CreateTestPage() {
     name: "longQuestions",
   });
   
-  const handlePdfGeneration = async (content: string, title: string) => {
+  const generatePdfContent = (data: OptimizeTestLayoutOutput) => {
+    const { testTitle, sections } = data;
+    
+    let html = `
+      <div style="font-family: 'Times New Roman', Times, serif; font-size: 14px; border: 1px solid black; padding: 5px;">
+        <div style="border: 3px solid black; padding: 20px; min-height: 29.7cm;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="font-size: 20px; font-weight: bold;">${testTitle}</h1>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span><strong>Student Name:</strong> ____________________</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span><strong>Roll Number:</strong> _____________________</span>
+            </div>
+            <hr style="border-top: 1px solid black; margin-bottom: 20px;" />`;
+
+    sections.forEach(section => {
+        html += `<div style="border: 1px solid black; padding: 10px; margin-bottom: 20px;">
+                    <h2 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">${section.title}</h2>`;
+        section.questions.forEach((q, index) => {
+             html += `<div style="margin-left: 3px; margin-bottom: 10px;">
+                        <p style="margin: 0;"><strong>${index + 1}.</strong> ${q}</p>
+                      </div>`;
+        });
+        html += `</div>`;
+    });
+
+    html += `</div></div>`;
+    return html;
+  };
+
+  const handlePdfGeneration = async (data: OptimizeTestLayoutOutput, title: string) => {
     const tempElement = document.createElement('div');
     tempElement.style.position = 'absolute';
     tempElement.style.left = '-9999px';
     tempElement.style.width = '210mm'; // A4 width
-    tempElement.style.padding = '20px';
-    tempElement.style.fontFamily = 'Inter, sans-serif';
-    tempElement.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit; font-size: 12px;">${content}</pre>`;
+    tempElement.style.background = 'white';
+    tempElement.innerHTML = generatePdfContent(data);
     document.body.appendChild(tempElement);
     
     try {
-      const canvas = await html2canvas(tempElement, { scale: 2 });
+      const canvas = await html2canvas(tempElement, { scale: 3, useCORS: true });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = imgWidth / imgHeight;
-      const width = pdfWidth;
-      const height = width / ratio;
+      
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const ratio = canvasWidth / canvasHeight;
 
+      const imgWidth = pdfWidth;
+      const imgHeight = imgWidth / ratio;
+      
+      let heightLeft = imgHeight;
       let position = 0;
-      let heightLeft = height;
 
-      pdf.addImage(imgData, 'PNG', 0, position, width, height);
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
 
       while (heightLeft > 0) {
-        position = heightLeft - height;
+        position = -pdfHeight; // Start from the top of the new page
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, width, height);
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pdfHeight;
       }
       
@@ -129,9 +162,12 @@ export default function CreateTestPage() {
         description: "Could not generate the PDF file. Please try again.",
       });
     } finally {
-        document.body.removeChild(tempElement);
+        if(document.body.contains(tempElement)) {
+            document.body.removeChild(tempElement);
+        }
     }
   }
+
 
   async function onSubmit(data: FormValues) {
     setIsLoading(true);
@@ -140,7 +176,7 @@ export default function CreateTestPage() {
         testTitle: data.testTitle,
         instructions: data.instructions,
         sections: [
-          { title: "Multiple Choice Questions", questions: data.mcqs.map(q => q.value) },
+          { title: "MCQs", questions: data.mcqs.map(q => q.value) },
           { title: "Short Questions", questions: data.shortQuestions.map(q => q.value) },
           { title: "Long Questions", questions: data.longQuestions.map(q => q.value) },
         ],
@@ -152,9 +188,9 @@ export default function CreateTestPage() {
       };
 
       const result = await optimizeTestLayout(input);
-      setOptimizedResult(result.optimizedLayout);
+      setOptimizedResult(result);
       
-      await handlePdfGeneration(result.optimizedLayout, data.testTitle);
+      await handlePdfGeneration(result, data.testTitle);
 
       // Save to local storage
       const savedTests = JSON.parse(localStorage.getItem("savedTests") || "[]");
@@ -379,18 +415,20 @@ export default function CreateTestPage() {
           <DialogHeader>
             <DialogTitle>Optimized Test Layout</DialogTitle>
             <DialogDescription>
-              Here is the AI-optimized text layout for your test. You can now copy this or use a PDF generation tool.
+              Here is the AI-optimized layout for your test. Your PDF has been downloaded.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 max-h-[60vh] overflow-y-auto rounded-md border bg-secondary/50 p-4">
-            <pre className="whitespace-pre-wrap text-sm font-code">{optimizedResult}</pre>
+            {optimizedResult && <pre className="whitespace-pre-wrap text-sm font-code">{JSON.stringify(optimizedResult, null, 2)}</pre>}
           </div>
           <DialogFooter>
             <Button onClick={() => setOptimizedResult(null)}>Close</Button>
             <Button
                 onClick={() => {
-                    navigator.clipboard.writeText(optimizedResult || "");
-                    toast({ title: "Copied to clipboard!" });
+                    if (optimizedResult) {
+                        navigator.clipboard.writeText(JSON.stringify(optimizedResult, null, 2));
+                        toast({ title: "Copied to clipboard!" });
+                    }
                 }}
             >
                 Copy Content

@@ -31,7 +31,13 @@ const OptimizeTestLayoutInputSchema = z.object({
 export type OptimizeTestLayoutInput = z.infer<typeof OptimizeTestLayoutInputSchema>;
 
 const OptimizeTestLayoutOutputSchema = z.object({
-  optimizedLayout: z.string().describe('The optimized layout of the test paper as a string.'),
+  testTitle: z.string().describe('The title of the test.'),
+  sections: z.array(
+    z.object({
+      title: z.string().describe('The title of the section.'),
+      questions: z.array(z.string()).describe('The questions in the section.'),
+    })
+  ).describe('The sections of the test, each with a title and questions.'),
 });
 
 export type OptimizeTestLayoutOutput = z.infer<typeof OptimizeTestLayoutOutputSchema>;
@@ -44,11 +50,14 @@ const optimizeTestLayoutPrompt = ai.definePrompt({
   name: 'optimizeTestLayoutPrompt',
   input: {schema: OptimizeTestLayoutInputSchema},
   output: {schema: OptimizeTestLayoutOutputSchema},
-  prompt: `You are an expert layout designer specializing in creating test papers that fit within one or two pages.
+  prompt: `You are an expert layout designer specializing in creating test papers.
 
-  Given the following test paper content and settings, optimize the layout to ensure it fits within the specified page dimensions.
-  Consider adjusting spacing, font sizes, and section arrangements to achieve the most efficient use of space while maintaining readability.
-  Return the optimized layout as a string.
+  Given the following test paper content, you will return a structured JSON object.
+  The goal is to refine the content if necessary but primarily structure it for a clean layout. 
+  For example, you might slightly rephrase questions for clarity or brevity to fit a layout better.
+  
+  Do not perform the layout yourself. Simply return the structured data.
+  The output should contain the test title and the sections with their titles and questions.
 
   Test Title: {{{testTitle}}}
   Instructions: {{{instructions}}}
@@ -60,13 +69,9 @@ const optimizeTestLayoutPrompt = ai.definePrompt({
   - {{{this}}}
   {{/each}}
   {{/each}}
-  Font Size: {{{fontSize}}}px
-  Page Width: {{{pageWidthPx}}}px
-  Page Height: {{{pageHeightPx}}}px
-  Page Width (cm, optional): {{{pageWidthCm}}}cm
-  Page Height (cm, optional): {{{pageHeightCm}}}cm
-
-  Optimized Layout:`, // No function calls, NO Asynchronous Operations! (Handlebars logic-less templates)
+  
+  Return ONLY the structured JSON that conforms to the output schema.
+  `,
 });
 
 const optimizeTestLayoutFlow = ai.defineFlow(
@@ -76,7 +81,24 @@ const optimizeTestLayoutFlow = ai.defineFlow(
     outputSchema: OptimizeTestLayoutOutputSchema,
   },
   async input => {
-    const {output} = await optimizeTestLayoutPrompt(input);
-    return output!;
+    // For this use case, we are mostly just restructuring the data,
+    // so we can pass the relevant parts of the input directly to the output schema.
+    // The LLM will refine the content.
+    const llmResponse = await optimizeTestLayoutPrompt(input);
+    const output = llmResponse.output;
+
+    if (!output) {
+      // Fallback in case LLM fails to return valid JSON.
+      return {
+        testTitle: input.testTitle,
+        sections: input.sections,
+      };
+    }
+    
+    // Ensure the output from the LLM is used, but also contains the essential structure.
+    return {
+      testTitle: output.testTitle || input.testTitle,
+      sections: output.sections && output.sections.length > 0 ? output.sections : input.sections,
+    };
   }
 );
