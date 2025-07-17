@@ -135,8 +135,8 @@ export default function CreateTestPage() {
     document.body.appendChild(tempElement);
     
     try {
-      const canvas = await html2canvas(tempElement, { scale: 3, useCORS: true });
-      const imgData = canvas.toDataURL('image/png');
+      const canvas = await html2canvas(tempElement, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/jpeg', 0.9); // Use JPEG compression
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -145,19 +145,17 @@ export default function CreateTestPage() {
       const canvasHeight = canvas.height;
       const ratio = canvasWidth / canvasHeight;
 
-      const imgWidth = pdfWidth;
-      const imgHeight = imgWidth / ratio;
-      
+      let imgHeight = pdfWidth / ratio;
       let heightLeft = imgHeight;
       let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
       heightLeft -= pdfHeight;
 
       while (heightLeft > 0) {
-        position = -pdfHeight; // Start from the top of the new page
+        position = -pdfHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
         heightLeft -= pdfHeight;
       }
       
