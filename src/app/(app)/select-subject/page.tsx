@@ -1,12 +1,10 @@
+
 "use client";
 
 import Link from "next/link";
 import {
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription
+  CardContent
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
@@ -14,19 +12,15 @@ import { BookOpen } from "lucide-react";
 const classes = [
   {
     name: "9th Class",
-    description: "Subjects for 9th grade.",
   },
   {
     name: "10th Class",
-    description: "Subjects for 10th grade.",
   },
   {
     name: "11th Class",
-    description: "Subjects for 11th grade.",
   },
   {
     name: "12th Class",
-    description: "Subjects for 12th grade.",
   },
 ];
 
@@ -41,20 +35,12 @@ export default function SelectSubjectPage() {
       </div>
       <div className="grid w-full max-w-4xl gap-6 md:grid-cols-2 lg:grid-cols-4">
         {classes.map((cls) => (
-          <Card key={cls.name} className="flex flex-col transition-all hover:shadow-lg">
-            <CardHeader className="flex-1">
-              <div className="mb-4 text-primary">
-                <BookOpen className="h-12 w-12" />
-              </div>
-              <CardTitle className="font-headline text-xl">{cls.name}</CardTitle>
-              <CardDescription>{cls.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full mt-auto bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Link href="/create-test">Select</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <Link key={cls.name} href="/create-test" className="group">
+            <Card className="flex h-full flex-col items-center justify-center p-6 text-center transition-all group-hover:shadow-lg group-hover:border-primary">
+              <BookOpen className="h-16 w-16 text-primary mb-4" />
+              <h2 className="text-xl font-semibold font-headline">{cls.name}</h2>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>
