@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const classes = [
   {
@@ -33,15 +34,20 @@ export default function SelectSubjectPage() {
           Choose a class to begin creating your test paper.
         </p>
       </div>
-      <div className="grid w-full max-w-4xl gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {classes.map((cls) => (
-          <Link key={cls.name} href="/create-test" className="group">
-            <Card className="flex h-full flex-col items-center justify-center p-6 text-center transition-all group-hover:shadow-lg group-hover:border-primary">
-              <BookOpen className="h-16 w-16 text-primary mb-4" />
-              <h2 className="text-xl font-semibold font-headline">{cls.name}</h2>
-            </Card>
-          </Link>
-        ))}
+      <div className="w-full max-w-4xl">
+        <ScrollArea className="w-full whitespace-nowrap rounded-md">
+          <div className="flex w-max space-x-4 pb-4">
+            {classes.map((cls) => (
+              <Link key={cls.name} href="/create-test" className="group">
+                <Card className="flex h-full w-40 flex-col items-center justify-center p-4 text-center transition-all group-hover:shadow-lg group-hover:border-primary">
+                  <BookOpen className="h-12 w-12 text-primary mb-2" />
+                  <h2 className="text-lg font-semibold font-headline">{cls.name}</h2>
+                </Card>
+              </Link>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </div>
     </div>
   );
