@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 const features = [
   {
     title: "Create New Test",
-    href: "/create-test",
+    href: "/select-subject",
     icon: <FilePlus2 className="h-12 w-12" />,
     description: "Start from scratch and build a new test paper.",
     cta: "Create Now",
